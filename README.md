@@ -35,6 +35,8 @@ How to run the program
 
 This program consists of 3 scripts. 
 
+I would very much have liked to use the inotify extension, but sadly I couldn't get it running on my rpi.
+
 TODO
 
 This script is run with sudo because it needs access to the GPIO. There might be more elegant ways to solve this issue,
