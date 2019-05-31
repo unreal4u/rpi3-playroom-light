@@ -7,9 +7,13 @@ require __DIR__ . '/../vendor/autoload.php';
 require __DIR__ . '/../config.php';
 
 use Symfony\Component\Console\Application;
-use unreal4u\rpiMagneticSwitch\readDoorSensor;
+use unreal4u\rpiMagneticSwitch\ReadButtonSensor;
+use unreal4u\rpiMagneticSwitch\ReadMQTTBroker;
+use unreal4u\rpiMagneticSwitch\ReadStateFile;
 
 $application = new Application();
-$application->add(new readDoorSensor());
+$application->add(new ReadButtonSensor());
+$application->add(new ReadStateFile());
+$application->add(new ReadMQTTBroker());
 $application->run();
 

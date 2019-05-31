@@ -12,7 +12,7 @@ use PiPHP\GPIO\Pin\PinInterface;
 use unreal4u\rpiCommonLibrary\Base;
 use unreal4u\rpiCommonLibrary\JobContract;
 
-class readDoorSensor extends Base {
+class ReadButtonSensor extends Base {
     /**
      * @var GPIO
      */
@@ -21,12 +21,12 @@ class readDoorSensor extends Base {
     /**
      * @var InputPin
      */
-    private $doorPin;
+    private $buttonPin;
 
     /**
-     * @var OutputPin
+     * @var string
      */
-    private $relayPin;
+    private $stateFileLocation;
 
     /**
      * Will be executed once before running the actual job
@@ -35,16 +35,13 @@ class readDoorSensor extends Base {
      */
     public function setUp(): JobContract
     {
+	$this->stateFileLocation = __DIR__ . '/../state/current.state';
         $this->gpio = new GPIO();
-        // Retrieve pin 17 and configure it as an input pin
-        $this->doorPin = $this->gpio->getInputPin(17);
-        // Also retrieve pin 27 and configure it as an output pin
-        $this->relayPin = $this->gpio->getOutputPin(27);
+        // Retrieve pin 21 and configure it as an input pin
+        $this->buttonPin = $this->gpio->getInputPin(24);
 
         // Configure interrupts for both rising and falling edges
-        $this->doorPin->setEdge(InputPinInterface::EDGE_BOTH);
-        // Set the default on boot: lights off
-        $this->relayPin->setValue(PinInterface::VALUE_HIGH);
+        $this->buttonPin->setEdge(InputPinInterface::EDGE_BOTH);
 
         return $this;
     }
@@ -52,9 +49,9 @@ class readDoorSensor extends Base {
     public function configure()
     {
         $this
-            ->setName('baseroom:door-sensor')
-            ->setDescription('Reads out the door sensor and turns light immediately on')
-            ->setHelp('Reads out the door sensor and passes this information back to the MQTT broker')
+            ->setName('playroom:button')
+            ->setDescription('Reads out the light button switch and writes this back to a file')
+            ->setHelp('TODO')
         ;
     }
 
@@ -69,8 +66,7 @@ class readDoorSensor extends Base {
         $interruptWatcher = $this->gpio->createWatcher();
 
         // Register a callback to be triggered on pin interrupts
-        $interruptWatcher->register($this->doorPin, function (InputPinInterface $pin, $value) {
-            $mqttCommunicator = $this->communicationsFactory('MQTT');
+        $interruptWatcher->register($this->buttonPin, function (InputPinInterface $pin, $value) {
             $this->logger->debug('Got a value from the sensor', [
                 'pinNumber' => $pin->getNumber(),
                 'value' => $value,
@@ -78,15 +74,11 @@ class readDoorSensor extends Base {
             ]);
 
             if ($value === 1) {
-                $this->logger->info('Door was opened', ['uniqueIdentifier' => $this->getUniqueIdentifier()]);
-                // Turn on light first ASAP, do logging afterwards
-                $this->relayPin->setValue(PinInterface::VALUE_LOW);
-                $mqttCommunicator->sendMessage('sensors/kelder/door', 'open');
-                $mqttCommunicator->sendMessage('commands/kelder/light', 'on');
-            } else {
-                $this->logger->info('Door was closed', ['uniqueIdentifier' => $this->getUniqueIdentifier()]);
-                $this->relayPin->setValue(PinInterface::VALUE_HIGH);
-                $mqttCommunicator->sendMessage('sensors/kelder/door', 'closed');
+		$this->logger->info('Detected an event', ['uniqueIdentifier' => $this->getUniqueIdentifier()]);
+		file_put_contents($this->stateFileLocation, 'toggle');
+		// This button seems to interfere quite a bit when the button is actually pressed
+		// This usleep will ignore any other signals received in 500ms
+		usleep(500000);
             }
 
             // Returning false will make the watcher return false immediately
